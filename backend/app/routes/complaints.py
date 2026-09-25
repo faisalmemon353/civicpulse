@@ -7,6 +7,7 @@ from app.schemas import Category, ComplaintCreate, ComplaintOut, Priority, Statu
 
 router = APIRouter(prefix="/api/complaints", tags=["complaints"])
 
+from app.services.status_machine import InvalidTransitionError, validate_transition
 
 @router.post("", response_model=ComplaintOut, status_code=status.HTTP_201_CREATED)
 def create_complaint(payload: ComplaintCreate):
@@ -45,8 +46,32 @@ def list_complaints(
     # TODO: replace with real filtering + pagination in Step 8
     return []
 
-
 @router.patch("/{complaint_id}/status", response_model=ComplaintOut)
-def update_status(complaint_id: UUID, payload: StatusUpdate, response: Response):
-    # TODO: replace with real state machine in Step 6
-    raise HTTPException(status_code=404, detail="Complaint not found")
+def update_status(complaint_id: UUID, payload: StatusUpdate):
+    # TODO: replace this hardcoded "current status" with a real DB lookup in Step 8
+    current_status = Status.open
+
+    try:
+        validate_transition(current_status, payload.status)
+    except InvalidTransitionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot transition from '{e.current.value}' to '{e.attempted.value}'",
+        )
+
+    # TODO: replace with real persistence in Step 8
+    now = datetime.now(timezone.utc)
+    return ComplaintOut(
+        id=complaint_id,
+        text="placeholder",
+        location="placeholder",
+        reporter_contact=None,
+        category=Category.other,
+        priority=Priority.normal,
+        status=payload.status,
+        ai_summary=None,
+        triaged_by="rules",
+        triage_latency_ms=0,
+        created_at=now,
+        updated_at=now,
+    )
