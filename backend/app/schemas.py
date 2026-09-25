@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Category(str, Enum):
@@ -34,6 +34,8 @@ class ComplaintCreate(BaseModel):
 
 
 class ComplaintOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     text: str
     location: str
@@ -46,7 +48,6 @@ class ComplaintOut(BaseModel):
     triage_latency_ms: int
     created_at: datetime
     updated_at: datetime
-
 
 class StatusUpdate(BaseModel):
     status: Status
