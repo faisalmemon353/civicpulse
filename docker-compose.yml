@@ -34,7 +34,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: civicpulse
-      POSTGRES_HOST_AUTH_METHOD=trust # dev only
+      POSTGRES_HOST_AUTH_METHOD=trust  # dev only
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
