@@ -9,6 +9,7 @@ from app.providers.triage.rules import RuleBasedTriage
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app import triage_log
 from app.db import get_db
 from app.repositories import complaints as repo
 from app.schemas import Category, ComplaintCreate, ComplaintOut, Priority, Status, StatusUpdate
@@ -22,6 +23,7 @@ router = APIRouter(prefix="/api/complaints", tags=["complaints"])
 def create_complaint(payload: ComplaintCreate, db: Session = Depends(get_db)):
     provider = get_active_provider()
     triaged_by = provider.name
+    is_fallback = False
 
     # Clock starts before the primary provider call and stops after whichever
     # provider (primary or fallback) returns.  This gives the total wall-time
@@ -35,7 +37,15 @@ def create_complaint(payload: ComplaintCreate, db: Session = Depends(get_db)):
         fallback = RuleBasedTriage()
         result = fallback.triage(payload.text, payload.location)
         triaged_by = "rules:fallback"
+        is_fallback = True
     triage_latency_ms = round((time.perf_counter() - _t0) * 1000)
+
+    # Record outcome in the rolling audit window for GET /api/meta/providers.
+    triage_log.record(
+        provider=triaged_by,
+        latency_ms=triage_latency_ms,
+        is_fallback=is_fallback,
+    )
 
     complaint = repo.create_complaint(
         db,
