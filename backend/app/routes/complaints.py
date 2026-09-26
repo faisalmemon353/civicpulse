@@ -1,3 +1,7 @@
+from app.providers.triage.base import TriageResult
+from app.providers.triage.factory import get_active_provider
+from app.providers.triage.rules import RuleBasedTriage
+
 from uuid import UUID
 from datetime import datetime, timezone
 
@@ -9,23 +13,34 @@ from app.repositories import complaints as repo
 from app.schemas import Category, ComplaintCreate, ComplaintOut, Priority, Status, StatusUpdate
 from app.services.status_machine import InvalidTransitionError, validate_transition
 
+
 router = APIRouter(prefix="/api/complaints", tags=["complaints"])
 
 
 @router.post("", response_model=ComplaintOut, status_code=status.HTTP_201_CREATED)
 def create_complaint(payload: ComplaintCreate, db: Session = Depends(get_db)):
-    # TODO(Step 8c): replace hardcoded category/priority/summary with
-    # real TriageProvider output once the AI layer exists.
+    provider = get_active_provider()
+    triaged_by = provider.name
+
+    try:
+        result: TriageResult = provider.triage(payload.text, payload.location)
+    except Exception:
+        # Any failure (network, timeout, validation, whatever) falls
+        # back to the rules-based provider, which must never itself fail.
+        fallback = RuleBasedTriage()
+        result = fallback.triage(payload.text, payload.location)
+        triaged_by = "rules:fallback"
+
     complaint = repo.create_complaint(
         db,
         text=payload.text,
         location=payload.location,
         reporter_contact=payload.reporter_contact,
-        category=Category.other,
-        priority=Priority.normal,
-        ai_summary=None,
-        triaged_by="rules",
-        triage_latency_ms=0,
+        category=result.category,
+        priority=result.priority,
+        ai_summary=result.summary,
+        triaged_by=triaged_by,
+        triage_latency_ms=0,  # real timing comes in a later step
     )
     return complaint
 
