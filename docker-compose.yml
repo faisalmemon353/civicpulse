@@ -11,7 +11,7 @@ services:
     ports:
       - "8000:8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -24,7 +24,7 @@ services:
       context: ./frontend
     image: civicpulse-frontend:latest
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - backend
 
@@ -34,6 +34,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: civicpulse
+      POSTGRES_HOST_AUTH_METHOD=trust # dev only
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
