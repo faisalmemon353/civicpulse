@@ -47,3 +47,15 @@ def close_redis() -> None:
         except Exception:
             pass
         _redis_client = None
+
+
+def check_redis() -> bool:
+    """Verifies Redis connection health with a PING."""
+    client = get_redis_client()
+    if not client:
+        return False
+    try:
+        return bool(client.ping())
+    except Exception:
+        return False
+

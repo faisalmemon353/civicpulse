@@ -1,8 +1,115 @@
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+import time
+import uuid
 
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+from app.cache import close_redis
+from app.db import engine
+from app.logging import logger, request_id_ctx, setup_logging
+from app.metrics import HTTP_REQUEST_DURATION_SECONDS, HTTP_REQUESTS_TOTAL
 from app.routes import complaints, meta, stats, system
 
-app = FastAPI(title="CivicPulse API")
+# Initialize structured JSON logging
+setup_logging()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("CivicPulse backend starting up")
+    yield
+    # Graceful Shutdown on SIGTERM / SIGINT: drain and close DB & Redis pools
+    logger.info("CivicPulse backend shutting down: draining connections")
+    try:
+        engine.dispose()
+    except Exception as e:
+        logger.error(f"Error disposing database engine: {e}")
+    try:
+        close_redis()
+    except Exception as e:
+        logger.error(f"Error closing Redis client: {e}")
+    logger.info("CivicPulse backend shutdown complete")
+
+
+app = FastAPI(title="CivicPulse API", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def logging_and_metrics_middleware(request: Request, call_next):
+    req_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    token = request_id_ctx.set(req_id)
+    start_time = time.perf_counter()
+
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+    except Exception as exc:
+        status_code = 500
+        logger.exception(f"Unhandled exception processing {request.method} {request.url.path}: {exc}")
+        raise exc from None
+    finally:
+        duration = time.perf_counter() - start_time
+        duration_ms = round(duration * 1000, 2)
+
+        # Record Prometheus HTTP metrics
+        endpoint = request.url.path
+        HTTP_REQUESTS_TOTAL.labels(
+            method=request.method,
+            endpoint=endpoint,
+            status_code=str(status_code),
+        ).inc()
+        HTTP_REQUEST_DURATION_SECONDS.labels(
+            method=request.method,
+            endpoint=endpoint,
+        ).observe(duration)
+
+        # Emit structured log
+        logger.info(
+            f"{request.method} {request.url.path} -> {status_code} in {duration_ms}ms",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+            },
+        )
+        request_id_ctx.reset(token)
+
+    response.headers["X-Request-ID"] = req_id
+    return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Translates Pydantic/FastAPI validation errors into HTTP 400 Bad Request
+    with structured field-level error details.
+    """
+    errors = []
+    for err in exc.errors():
+        loc = err.get("loc", ())
+        field = ".".join(str(p) for p in loc if p not in ("body",))
+        errors.append({
+            "field": field or "body",
+            "message": err.get("msg", ""),
+            "type": err.get("type", ""),
+        })
+
+    logger.warning(
+        f"Validation failed for {request.method} {request.url.path}",
+        extra={"validation_errors": errors},
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={
+            "detail": "Validation error",
+            "errors": errors,
+        },
+    )
+
 
 app.include_router(system.router)
 app.include_router(complaints.router)
