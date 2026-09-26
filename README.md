@@ -1,1 +1,1 @@
-   # CivicPulse
+# CivicPulse
