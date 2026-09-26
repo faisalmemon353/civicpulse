@@ -81,3 +81,29 @@ def update_complaint_status(db: Session, complaint_id: UUID, new_status: Status)
     db.commit()
     db.refresh(complaint)
     return complaint
+
+
+def get_complaint_stats(db: Session) -> dict:
+    by_category = {c.value: 0 for c in Category}
+    for cat, count in db.query(Complaint.category, func.count(Complaint.id)).group_by(Complaint.category).all():
+        key = cat.value if hasattr(cat, "value") else str(cat)
+        by_category[key] = count
+
+    by_priority = {p.value: 0 for p in Priority}
+    for prio, count in db.query(Complaint.priority, func.count(Complaint.id)).group_by(Complaint.priority).all():
+        key = prio.value if hasattr(prio, "value") else str(prio)
+        by_priority[key] = count
+
+    by_status = {s.value: 0 for s in Status}
+    for st, count in db.query(Complaint.status, func.count(Complaint.id)).group_by(Complaint.status).all():
+        key = st.value if hasattr(st, "value") else str(st)
+        by_status[key] = count
+
+    total = sum(by_category.values())
+
+    return {
+        "total": total,
+        "by_category": by_category,
+        "by_priority": by_priority,
+        "by_status": by_status,
+    }
