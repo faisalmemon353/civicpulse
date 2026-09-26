@@ -15,3 +15,14 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def check_postgres() -> bool:
+    """Verifies Postgres connection health with a quick SELECT 1 query."""
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False

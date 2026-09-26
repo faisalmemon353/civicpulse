@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from app import triage_log
 from app.db import get_db
+from app.logging import logger
+from app.metrics import record_triage_metrics
 from app.repositories import complaints as repo
 from app.routes.stats import invalidate_stats_cache
 from app.schemas import Category, ComplaintCreate, ComplaintOut, Priority, Status, StatusUpdate
@@ -32,22 +34,33 @@ def create_complaint(payload: ComplaintCreate, request: Request, db: Session = D
     # provider (primary or fallback) returns.  This gives the total wall-time
     # the caller waited for a triage result — the most actionable metric.
     _t0 = time.perf_counter()
+    fallback_error: Exception | None = None
     try:
         result: TriageResult = provider.triage(payload.text, payload.location)
-    except Exception:
+    except Exception as exc:
+        fallback_error = exc
         # Any failure (network, timeout, validation, whatever) falls
         # back to the rules-based provider, which must never itself fail.
         fallback = RuleBasedTriage()
         result = fallback.triage(payload.text, payload.location)
         triaged_by = "rules:fallback"
         is_fallback = True
-    triage_latency_ms = round((time.perf_counter() - _t0) * 1000)
+    triage_latency_seconds = time.perf_counter() - _t0
+    triage_latency_ms = round(triage_latency_seconds * 1000)
 
     # Record outcome in the rolling audit window for GET /api/meta/providers.
     triage_log.record(
         provider=triaged_by,
         latency_ms=triage_latency_ms,
         is_fallback=is_fallback,
+    )
+
+    # Record Prometheus triage latency and fallback metrics
+    record_triage_metrics(
+        provider=triaged_by,
+        latency_seconds=triage_latency_seconds,
+        is_fallback=is_fallback,
+        primary_provider=provider.name,
     )
 
     complaint = repo.create_complaint(
@@ -62,6 +75,19 @@ def create_complaint(payload: ComplaintCreate, request: Request, db: Session = D
         triage_latency_ms=triage_latency_ms,
     )
     invalidate_stats_cache()
+
+    # One WARNING-level log per fallback event
+    if is_fallback and fallback_error is not None:
+        logger.warning(
+            f"Triage fallback event: primary provider '{provider.name}' failed with {fallback_error.__class__.__name__}",
+            extra={
+                "complaint_id": str(complaint.id),
+                "provider_name": provider.name,
+                "error_class": fallback_error.__class__.__name__,
+                "error_message": str(fallback_error),
+            },
+        )
+
     return complaint
 
 
