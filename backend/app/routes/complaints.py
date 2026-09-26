@@ -1,9 +1,10 @@
+import time
+from uuid import UUID
+from datetime import datetime, timezone
+
 from app.providers.triage.base import TriageResult
 from app.providers.triage.factory import get_active_provider
 from app.providers.triage.rules import RuleBasedTriage
-
-from uuid import UUID
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -22,6 +23,10 @@ def create_complaint(payload: ComplaintCreate, db: Session = Depends(get_db)):
     provider = get_active_provider()
     triaged_by = provider.name
 
+    # Clock starts before the primary provider call and stops after whichever
+    # provider (primary or fallback) returns.  This gives the total wall-time
+    # the caller waited for a triage result — the most actionable metric.
+    _t0 = time.perf_counter()
     try:
         result: TriageResult = provider.triage(payload.text, payload.location)
     except Exception:
@@ -30,6 +35,7 @@ def create_complaint(payload: ComplaintCreate, db: Session = Depends(get_db)):
         fallback = RuleBasedTriage()
         result = fallback.triage(payload.text, payload.location)
         triaged_by = "rules:fallback"
+    triage_latency_ms = round((time.perf_counter() - _t0) * 1000)
 
     complaint = repo.create_complaint(
         db,
@@ -40,7 +46,7 @@ def create_complaint(payload: ComplaintCreate, db: Session = Depends(get_db)):
         priority=result.priority,
         ai_summary=result.summary,
         triaged_by=triaged_by,
-        triage_latency_ms=0,  # real timing comes in a later step
+        triage_latency_ms=triage_latency_ms,
     )
     return complaint
 
