@@ -6,13 +6,15 @@ from app.providers.triage.base import TriageResult
 from app.providers.triage.factory import get_active_provider
 from app.providers.triage.rules import RuleBasedTriage
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app import triage_log
 from app.db import get_db
 from app.repositories import complaints as repo
+from app.routes.stats import invalidate_stats_cache
 from app.schemas import Category, ComplaintCreate, ComplaintOut, Priority, Status, StatusUpdate
+from app.services.rate_limiter import check_rate_limit
 from app.services.status_machine import InvalidTransitionError, validate_transition
 
 
@@ -20,7 +22,8 @@ router = APIRouter(prefix="/api/complaints", tags=["complaints"])
 
 
 @router.post("", response_model=ComplaintOut, status_code=status.HTTP_201_CREATED)
-def create_complaint(payload: ComplaintCreate, db: Session = Depends(get_db)):
+def create_complaint(payload: ComplaintCreate, request: Request, db: Session = Depends(get_db)):
+    check_rate_limit(request)
     provider = get_active_provider()
     triaged_by = provider.name
     is_fallback = False
@@ -58,6 +61,7 @@ def create_complaint(payload: ComplaintCreate, db: Session = Depends(get_db)):
         triaged_by=triaged_by,
         triage_latency_ms=triage_latency_ms,
     )
+    invalidate_stats_cache()
     return complaint
 
 
@@ -103,4 +107,6 @@ def update_status(complaint_id: UUID, payload: StatusUpdate, db: Session = Depen
             detail=f"Cannot transition from '{e.current.value}' to '{e.attempted.value}'",
         )
 
-    return repo.update_complaint_status(db, complaint_id, payload.status)
+    updated = repo.update_complaint_status(db, complaint_id, payload.status)
+    invalidate_stats_cache()
+    return updated

@@ -4,10 +4,27 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.cache import get_redis_client
 from app.db import Base, get_db
 from app.main import app
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
+
+
+@pytest.fixture(autouse=True)
+def clean_redis():
+    client = get_redis_client()
+    if client:
+        try:
+            client.flushdb()
+        except Exception:
+            pass
+    yield
+    if client:
+        try:
+            client.flushdb()
+        except Exception:
+            pass
 
 
 @pytest.fixture(scope="function")

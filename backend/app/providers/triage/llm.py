@@ -1,3 +1,4 @@
+import hashlib
 import json
 import random
 import time
@@ -5,6 +6,7 @@ import time
 from openai import OpenAI, APITimeoutError, APIStatusError
 from pydantic import ValidationError
 
+from app.cache import get_redis_client
 from app.config import settings
 from app.providers.triage.base import TriageResult
 from app.schemas import Category, Priority
@@ -36,6 +38,7 @@ class LLMTriage:
     hard timeout, retries once (with jitter) only on timeout/429/5xx,
     and validates the model's output against TriageResult regardless
     of what the model claims to have returned.
+    Caches successful results by text hash in Redis with a 24-hour TTL.
     """
 
     name = "llm:openrouter"
@@ -49,6 +52,25 @@ class LLMTriage:
         self._model = settings.triage_llm_model
 
     def triage(self, text: str, location: str) -> TriageResult:
+        # Check text-hash cache first (24h TTL)
+        text_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
+        cache_key = f"triage:llm:{text_hash}"
+        redis_client = get_redis_client()
+
+        if redis_client:
+            try:
+                cached_bytes = redis_client.get(cache_key)
+                if cached_bytes:
+                    data = json.loads(cached_bytes)
+                    return TriageResult(
+                        category=Category(data["category"]),
+                        priority=Priority(data["priority"]),
+                        summary=str(data["summary"]),
+                        confidence=float(data["confidence"]),
+                    )
+            except Exception:
+                pass
+
         user_prompt = f'Complaint text: """{text}"""\nLocation: {location}'
 
         last_error: Exception | None = None
@@ -64,7 +86,20 @@ class LLMTriage:
                     max_tokens=200,
                 )
                 raw_content = response.choices[0].message.content
-                return self._parse_and_validate(raw_content)
+                result = self._parse_and_validate(raw_content)
+
+                # Cache successful outcome for 24h
+                if redis_client:
+                    try:
+                        redis_client.set(
+                            cache_key,
+                            result.model_dump_json(),
+                            ex=24 * 3600,
+                        )
+                    except Exception:
+                        pass
+
+                return result
 
             except APITimeoutError as e:
                 last_error = e
