@@ -82,7 +82,7 @@ jobs:
           tags: myregistry/civicpulse:${{ github.sha }}
 
       - name: Trivy Scan (SAST)
-        uses: aquasecurity/trivy-action@0.24.0   # <-- fixed version
+        uses: aquasecurity/trivy-action@v0.36.0   # <-- correct tag  # <-- fixed version
         with:
           image-ref: myregistry/civicpulse:${{ github.sha }}
           format: sarif
@@ -194,7 +194,7 @@ jobs:
         run: docker build -t civicpulse-frontend:ci -f frontend/Dockerfile frontend
 
       - name: Trivy scan — backend
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0   # <-- correct tag
         with:
           image-ref: civicpulse-backend:ci
           severity: HIGH,CRITICAL
@@ -202,7 +202,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Trivy scan — frontend
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0   # <-- correct tag
         with:
           image-ref: civicpulse-frontend:ci
           severity: HIGH,CRITICAL
