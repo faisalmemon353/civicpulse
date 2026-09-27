@@ -2,9 +2,11 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
+import redis
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.cache import close_redis
 from app.db import engine
@@ -24,11 +26,11 @@ async def lifespan(app: FastAPI):
     logger.info("CivicPulse backend shutting down: draining connections")
     try:
         engine.dispose()
-    except Exception as exc:
+    except (SQLAlchemyError, OSError) as exc:
         logger.warning("Error disposing database engine: %s", exc)
     try:
         close_redis()
-    except Exception as exc:
+    except (redis.RedisError, OSError) as exc:
         logger.warning("Error closing Redis client: %s", exc)
     logger.info("CivicPulse backend shutdown complete")
 

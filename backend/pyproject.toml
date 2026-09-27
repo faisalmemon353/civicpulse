@@ -41,4 +41,5 @@ ignore = [
     "B008",   # FastAPI Depends and Query in function parameter defaults
     "BLE001", # Blind Exception catching
     "S110",   # try-except-pass blocks
+    "RUF100", # Unused noqa directive
 ]
