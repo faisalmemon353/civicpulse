@@ -37,7 +37,7 @@ def create_complaint(payload: ComplaintCreate, request: Request, db: Session = D
     fallback_error: Exception | None = None
     try:
         result: TriageResult = provider.triage(payload.text, payload.location)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — intentional catch-all; any failure falls back to rules
         fallback_error = exc
         # Any failure (network, timeout, validation, whatever) falls
         # back to the rules-based provider, which must never itself fail.
