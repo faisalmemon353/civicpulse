@@ -1,10 +1,5 @@
 import time
 from uuid import UUID
-from datetime import datetime, timezone
-
-from app.providers.triage.base import TriageResult
-from app.providers.triage.factory import get_active_provider
-from app.providers.triage.rules import RuleBasedTriage
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
@@ -13,12 +8,21 @@ from app import triage_log
 from app.db import get_db
 from app.logging import logger
 from app.metrics import record_triage_metrics
+from app.providers.triage.base import TriageResult
+from app.providers.triage.factory import get_active_provider
+from app.providers.triage.rules import RuleBasedTriage
 from app.repositories import complaints as repo
 from app.routes.stats import invalidate_stats_cache
-from app.schemas import Category, ComplaintCreate, ComplaintOut, Priority, Status, StatusUpdate
+from app.schemas import (
+    Category,
+    ComplaintCreate,
+    ComplaintOut,
+    Priority,
+    Status,
+    StatusUpdate,
+)
 from app.services.rate_limiter import check_rate_limit
 from app.services.status_machine import InvalidTransitionError, validate_transition
-
 
 router = APIRouter(prefix="/api/complaints", tags=["complaints"])
 
@@ -37,7 +41,7 @@ def create_complaint(payload: ComplaintCreate, request: Request, db: Session = D
     fallback_error: Exception | None = None
     try:
         result: TriageResult = provider.triage(payload.text, payload.location)
-    except Exception as exc:  # noqa: BLE001 — intentional catch-all; any failure falls back to rules
+    except Exception as exc:
         fallback_error = exc
         # Any failure (network, timeout, validation, whatever) falls
         # back to the rules-based provider, which must never itself fail.

@@ -4,7 +4,7 @@ import logging
 import random
 import time
 
-from openai import OpenAI, APITimeoutError, APIStatusError
+from openai import APIStatusError, APITimeoutError, OpenAI
 from pydantic import ValidationError
 
 from app.cache import get_redis_client

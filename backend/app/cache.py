@@ -1,17 +1,16 @@
 """
 Redis client and connection management for CivicPulse.
 """
-from typing import Optional
 
 import redis
 
 from app.config import settings
 from app.logging import logger
 
-_redis_client: Optional[redis.Redis] = None
+_redis_client: redis.Redis | None = None
 
 
-def get_redis_client() -> Optional[redis.Redis]:
+def get_redis_client() -> redis.Redis | None:
     """
     Returns a singleton Redis client connected to settings.redis_url.
     Returns None if connection fails, enabling graceful degradation.
@@ -35,7 +34,7 @@ def get_redis_client() -> Optional[redis.Redis]:
         return None
 
 
-def set_redis_client(client: Optional[redis.Redis]) -> None:
+def set_redis_client(client: redis.Redis | None) -> None:
     """Explicitly sets or overrides the Redis client (useful in tests)."""
     global _redis_client
     _redis_client = client

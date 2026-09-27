@@ -2,7 +2,6 @@
 Distributed Redis-backed token bucket rate limiter for CivicPulse.
 """
 import logging
-import math
 import time
 
 from fastapi import HTTPException, Request, status
@@ -88,6 +87,6 @@ def check_rate_limit(request: Request) -> None:
             )
     except HTTPException:
         raise
-    except Exception as exc:  # noqa: BLE001 — fail-open: Redis errors must never deny service
+    except Exception as exc:
         # If Redis errors (e.g. connection timeout), fail open to avoid service denial
         logger.debug("Rate limiter Redis error (failing open): %s", exc)

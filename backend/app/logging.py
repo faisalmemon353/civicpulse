@@ -2,11 +2,11 @@
 Structured JSON logging for CivicPulse.
 Outputs machine-parseable JSON logs to stdout with automatic request_id correlation.
 """
-from contextvars import ContextVar
-from datetime import datetime, timezone
 import json
 import logging
 import sys
+from contextvars import ContextVar
+from datetime import UTC, datetime
 from typing import Any
 
 # ContextVar for propagating request_id across async and sync call stacks
@@ -18,7 +18,7 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_obj: dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
