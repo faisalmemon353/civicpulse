@@ -1,3 +1,4 @@
+```yaml
 name: CI
 
 on:
@@ -10,9 +11,11 @@ permissions:
   contents: read
 
 jobs:
+
   lint-and-type:
     name: Lint & Type Check
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +34,7 @@ jobs:
 
       - name: Mypy (type check)
         working-directory: backend
-        run: mypy app/ || true   # non‑blocking until fully typed; tighten later
+        run: mypy app/ || true
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -39,28 +42,6 @@ jobs:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
-
-      # -------------------------------------------------
-      # **NEW STEP – install kustomize**
-      # -------------------------------------------------
-      - name: Install kustomize
-        run: |
-          curl -sLo kustomize.tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.1/kustomize_v5.8.1_linux_amd64.tar.gz
-          tar -xzf kustomize.tar.gz kustomize
-          chmod +x kustomize
-          sudo mv kustomize /usr/local/bin/
-
-      # -------------------------------------------------
-      # Quick sanity‑check that the manifests build
-      # -------------------------------------------------
-      - name: Verify kustomize build (dev)
-        run: |
-          kustomize version
-          kustomize build k8s/overlays/dev | head -n 20
-
-      - name: Verify kustomize build (prod)
-        run: |
-          kustomize build k8s/overlays/prod | head -n 20
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -70,61 +51,41 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
-      - name: Run Tests
-        working-directory: backend
-        run: pytest
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          tags: myregistry/civicpulse:${{ github.sha }}
-
-      - name: Trivy Scan (SAST)
-        uses: aquasecurity/trivy-action@v0.36.0   # <-- correct tag  # <-- fixed version
-        with:
-          image-ref: myregistry/civicpulse:${{ github.sha }}
-          format: sarif
-          output: trivy-results.sarif
-
-      - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif
-
-  # -----------------------------------------------------------------
-  # The remaining jobs (backend test, frontend test, build, scan, etc.)
-  # stay exactly as you already have them – no changes needed.
-  # -----------------------------------------------------------------
   test-backend:
     name: Backend Tests
     runs-on: ubuntu-latest
     needs: lint-and-type
+
     env:
       DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/civicpulse_test
       TRIAGE_PROVIDER: simulated
       REDIS_URL: redis://localhost:6379/0
+
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: testpass
           POSTGRES_DB: civicpulse_test
-        ports: ["5432:5432"]
+        ports:
+          - "5432:5432"
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
       redis:
         image: redis:7
-        ports: ["6379:6379"]
+        ports:
+          - "6379:6379"
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -145,10 +106,12 @@ jobs:
         working-directory: backend
         run: pytest --cov=app --cov-report=term-missing --cov-fail-under=65 tests/
 
+
   test-frontend:
     name: Frontend Tests
     runs-on: ubuntu-latest
     needs: lint-and-type
+
     steps:
       - uses: actions/checkout@v4
 
@@ -159,7 +122,7 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
@@ -167,10 +130,12 @@ jobs:
         working-directory: frontend
         run: npm run test -- --run
 
+
   build:
     name: Build Images (no push)
     runs-on: ubuntu-latest
     needs: [test-backend, test-frontend]
+
     steps:
       - uses: actions/checkout@v4
 
@@ -179,11 +144,13 @@ jobs:
 
       - name: Build frontend image
         run: docker build -t civicpulse-frontend:ci -f frontend/Dockerfile frontend
+
 
   scan:
     name: Vulnerability Scan
     runs-on: ubuntu-latest
     needs: build
+
     steps:
       - uses: actions/checkout@v4
 
@@ -193,25 +160,27 @@ jobs:
       - name: Build frontend image
         run: docker build -t civicpulse-frontend:ci -f frontend/Dockerfile frontend
 
-      - name: Trivy scan — backend
-        uses: aquasecurity/trivy-action@v0.36.0   # <-- correct tag
+      - name: Trivy scan - backend
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: civicpulse-backend:ci
           severity: HIGH,CRITICAL
           exit-code: "1"
           ignore-unfixed: true
 
-      - name: Trivy scan — frontend
-        uses: aquasecurity/trivy-action@v0.36.0   # <-- correct tag
+      - name: Trivy scan - frontend
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: civicpulse-frontend:ci
           severity: HIGH,CRITICAL
           exit-code: "1"
           ignore-unfixed: true
 
+
   manifests:
     name: Validate Kubernetes Manifests
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -226,3 +195,4 @@ jobs:
           curl -sSLo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
           tar -xzf kubeconform.tar.gz kubeconform
           ./kubeconform -strict -summary /tmp/manifests.yaml
+```
