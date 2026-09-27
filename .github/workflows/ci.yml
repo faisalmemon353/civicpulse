@@ -31,7 +31,7 @@ jobs:
 
       - name: Mypy (type check)
         working-directory: backend
-        run: mypy app/ || true # non‑blocking until fully typed; tighten later
+        run: mypy app/ || true   # non‑blocking until fully typed; tighten later
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -49,6 +49,18 @@ jobs:
           tar -xzf kustomize.tar.gz kustomize
           chmod +x kustomize
           sudo mv kustomize /usr/local/bin/
+
+      # -------------------------------------------------
+      # Quick sanity‑check that the manifests build
+      # -------------------------------------------------
+      - name: Verify kustomize build (dev)
+        run: |
+          kustomize version
+          kustomize build k8s/overlays/dev | head -n 20
+
+      - name: Verify kustomize build (prod)
+        run: |
+          kustomize build k8s/overlays/prod | head -n 20
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -70,7 +82,7 @@ jobs:
           tags: myregistry/civicpulse:${{ github.sha }}
 
       - name: Trivy Scan (SAST)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.24.0   # <-- fixed version
         with:
           image-ref: myregistry/civicpulse:${{ github.sha }}
           format: sarif
@@ -81,7 +93,10 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
-
+  # -----------------------------------------------------------------
+  # The remaining jobs (backend test, frontend test, build, scan, etc.)
+  # stay exactly as you already have them – no changes needed.
+  # -----------------------------------------------------------------
   test-backend:
     name: Backend Tests
     runs-on: ubuntu-latest
