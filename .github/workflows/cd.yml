@@ -5,13 +5,31 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
 jobs:
-  build-push-deploy:
+  test:
+    name: Test Suite
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Kubernetes Manifests
+        uses: stefanprodan/kubeconform-action@v0.1.0
+        with:
+          k8s-version: "1.30.0"
+          schema-locations: "default"
+          ignore-missing-schemas: false
+          files: "k8s/base/*.yaml"
+
+  build-push:
+    name: Build & Publish to GHCR
+    needs: test
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,13 +62,31 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/civicpulse-frontend:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/civicpulse-frontend:latest
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: "v1.30.0"
+  deploy:
+    name: Ephemeral Kubernetes Deploy & Smoke Test
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Deploy to Kubernetes
-        env:
-          KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
+      - name: Create Ephemeral Kind Cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: kind-civicpulse
+          wait: 120s
+
+      - name: Deploy Kubernetes Manifests
         run: |
-          kubectl apply -f k8s/civicpulse.yaml
+          kubectl apply -k k8s/overlays/dev
+          echo "Waiting on rollout status..."
+          kubectl rollout status statefulset/postgres -n civicpulse --timeout=180s
+          kubectl rollout status deployment/redis -n civicpulse --timeout=180s
+          kubectl rollout status deployment/backend -n civicpulse --timeout=180s
+          kubectl rollout status deployment/frontend -n civicpulse --timeout=180s
+
+      - name: Smoke Test Ingress & Services
+        run: |
+          kubectl get all -n civicpulse
+          kubectl get hpa -n civicpulse
+          kubectl get ingress -n civicpulse
