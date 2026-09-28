@@ -30,11 +30,11 @@ class OllamaTriage:
         self,
         host: str | None = None,
         model: str | None = None,
-        timeout: float = 10.0,
+        timeout: float | None = None,
     ):
         self._host = (host or settings.ollama_host).rstrip("/")
         self._model = model or settings.ollama_model
-        self._timeout = timeout
+        self._timeout = timeout if timeout is not None else getattr(settings, "ollama_timeout", 60.0)
 
     def triage(self, text: str, location: str) -> TriageResult:
         # Check text-hash cache first (24h TTL)
@@ -68,6 +68,7 @@ class OllamaTriage:
             "stream": False,
             "options": {
                 "temperature": 0.1,
+                "num_predict": 120,
             },
         }
 
