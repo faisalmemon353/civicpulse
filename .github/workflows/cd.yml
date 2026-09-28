@@ -104,10 +104,19 @@ jobs:
           kubectl rollout status statefulset/postgres -n civicpulse --timeout=180s
           kubectl rollout status deployment/redis -n civicpulse --timeout=180s
           kubectl rollout status deployment/backend -n civicpulse --timeout=180s
-          kubectl rollout status deployment/frontend -n civicpulse --timeout=180s
+          kubectl rollout status deployment/frontend -n civicpulse --timeout=300s
+
+      - name: Debug Diagnostics on Failure
+        if: failure()
+        run: |
+          kubectl get pods -n civicpulse -o wide
+          kubectl describe deployment frontend -n civicpulse
+          kubectl describe pods -l app=frontend -n civicpulse
+          kubectl logs -l app=frontend -n civicpulse --all-containers=true || true
 
       - name: Smoke Test Ingress & Services
         run: |
           kubectl get all -n civicpulse
           kubectl get hpa -n civicpulse
+          kubectl describe vpa backend-vpa -n civicpulse
           kubectl get ingress -n civicpulse
