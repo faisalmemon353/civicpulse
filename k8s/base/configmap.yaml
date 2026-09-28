@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: civicpulse-config
+  namespace: civicpulse
+data:
+  POSTGRES_DB: "civicpulse"
+  POSTGRES_USER: "civicpulse"
+  TRIAGE_PROVIDER: "simulated"
+  TRIAGE_LLM_MODEL: "google/gemma-4-26b-a4b-it:free"
+  RATE_LIMIT_REQUESTS: "100"
+  RATE_LIMIT_WINDOW_SECONDS: "60"
