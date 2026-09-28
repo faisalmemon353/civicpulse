@@ -98,6 +98,7 @@ jobs:
 
       - name: Deploy Kubernetes Manifests
         run: |
+          kubectl apply -f k8s/base/vpa-crd.yaml
           kubectl apply -k k8s/overlays/dev
           echo "Waiting on rollout status..."
           kubectl rollout status statefulset/postgres -n civicpulse --timeout=180s
