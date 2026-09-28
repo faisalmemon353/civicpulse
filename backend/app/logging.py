@@ -2,6 +2,7 @@
 Structured JSON logging for CivicPulse.
 Outputs machine-parseable JSON logs to stdout with automatic request_id correlation.
 """
+
 import json
 import logging
 import sys
@@ -31,10 +32,28 @@ class JSONFormatter(logging.Formatter):
 
         # Include any extra kwargs attached to the record
         standard_attrs = {
-            "name", "msg", "args", "levelname", "levelno", "pathname", "filename",
-            "module", "exc_info", "exc_text", "stack_info", "lineno", "funcName",
-            "created", "msecs", "relativeCreated", "thread", "threadName",
-            "processName", "process", "message", "request_id"
+            "name",
+            "msg",
+            "args",
+            "levelname",
+            "levelno",
+            "pathname",
+            "filename",
+            "module",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "lineno",
+            "funcName",
+            "created",
+            "msecs",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "processName",
+            "process",
+            "message",
+            "request_id",
         }
         extras = {k: v for k, v in record.__dict__.items() if k not in standard_attrs}
         if extras:

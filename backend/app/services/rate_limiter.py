@@ -1,6 +1,7 @@
 """
 Distributed Redis-backed token bucket rate limiter for CivicPulse.
 """
+
 import logging
 import time
 

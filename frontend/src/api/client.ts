@@ -27,12 +27,19 @@ async function handleResponse<T>(res: Response): Promise<T> {
     }
 
     try {
-      const json = await res.json();
-      if (json && json.detail !== undefined) {
-        errorDetail = json.detail;
+      const text = await res.text();
+      try {
+        const json = JSON.parse(text);
+        if (json && json.detail !== undefined) {
+          errorDetail = json.detail;
+        } else {
+          errorDetail = text || res.statusText || errorDetail;
+        }
+      } catch {
+        errorDetail = text || res.statusText || errorDetail;
       }
     } catch {
-      errorDetail = (await res.text()) || res.statusText || errorDetail;
+      errorDetail = res.statusText || errorDetail;
     }
 
     throw new ApiError(res.status, errorDetail, retryAfterSeconds);

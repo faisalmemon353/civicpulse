@@ -49,7 +49,9 @@ async def logging_and_metrics_middleware(request: Request, call_next):
         status_code = response.status_code
     except Exception as exc:
         status_code = 500
-        logger.exception("Unhandled exception processing %s %s: %s", request.method, request.url.path, exc)
+        logger.exception(
+            "Unhandled exception processing %s %s: %s", request.method, request.url.path, exc
+        )
         raise exc from None
     finally:
         duration = time.perf_counter() - start_time
@@ -97,11 +99,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     for err in exc.errors():
         loc = err.get("loc", ())
         field = ".".join(str(p) for p in loc if p not in ("body",))
-        errors.append({
-            "field": field or "body",
-            "message": err.get("msg", ""),
-            "type": err.get("type", ""),
-        })
+        errors.append(
+            {
+                "field": field or "body",
+                "message": err.get("msg", ""),
+                "type": err.get("type", ""),
+            }
+        )
 
     logger.warning(
         "Validation failed for %s %s",
