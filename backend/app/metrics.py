@@ -1,6 +1,7 @@
 """
 Prometheus metrics exposition for CivicPulse.
 """
+
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     Counter,
@@ -47,7 +48,9 @@ TRIAGE_FALLBACKS_TOTAL = Counter(
 )
 
 
-def record_triage_metrics(provider: str, latency_seconds: float, is_fallback: bool, primary_provider: str = "") -> None:
+def record_triage_metrics(
+    provider: str, latency_seconds: float, is_fallback: bool, primary_provider: str = ""
+) -> None:
     """Records triage duration and fallback counts in Prometheus."""
     TRIAGE_DURATION_SECONDS.labels(provider=provider).observe(latency_seconds)
     if is_fallback:

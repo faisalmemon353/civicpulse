@@ -6,6 +6,7 @@ Tests for Item 4: Redis Cache Layer:
 2. Distributed token-bucket rate limiter on POST /api/complaints with 429 + Retry-After.
 3. LLMTriage text-hash caching with 24h TTL by SHA256 of complaint text.
 """
+
 import hashlib
 import json
 from unittest.mock import MagicMock, patch
@@ -21,6 +22,7 @@ from app.schemas import Category, Priority
 # =====================================================================
 # 1. Stats Caching Tests
 # =====================================================================
+
 
 def test_stats_cache_miss_then_hit(client, db_session):
     """
@@ -118,19 +120,24 @@ def test_stats_cache_invalidated_on_status_update(client, db_session):
 # 2. Distributed Rate Limiter Tests
 # =====================================================================
 
+
 def test_rate_limiter_blocks_excess_requests(client, db_session):
     """
     When rate limit capacity is reached, subsequent requests from the same IP
     must be rejected with HTTP 429 Too Many Requests and a Retry-After header.
     """
-    with patch.object(settings, "rate_limit_requests", 3), \
-         patch.object(settings, "rate_limit_window_seconds", 60):
-
+    with (
+        patch.object(settings, "rate_limit_requests", 3),
+        patch.object(settings, "rate_limit_window_seconds", 60),
+    ):
         # First 3 requests succeed
         for i in range(3):
             res = client.post(
                 "/api/complaints",
-                json={"text": f"Complaint number {i+1} for streetlights", "location": "Test Area"},
+                json={
+                    "text": f"Complaint number {i + 1} for streetlights",
+                    "location": "Test Area",
+                },
                 headers={"X-Forwarded-For": "192.168.1.100"},
             )
             assert res.status_code == 201
@@ -152,9 +159,10 @@ def test_rate_limiter_isolated_by_client_ip(client, db_session):
     Rate limits must be keyed per client IP: one IP hitting its limit
     must NOT block requests from a different client IP.
     """
-    with patch.object(settings, "rate_limit_requests", 2), \
-         patch.object(settings, "rate_limit_window_seconds", 60):
-
+    with (
+        patch.object(settings, "rate_limit_requests", 2),
+        patch.object(settings, "rate_limit_window_seconds", 60),
+    ):
         # Exhaust IP A
         for _ in range(2):
             res = client.post(
@@ -185,6 +193,7 @@ def test_rate_limiter_isolated_by_client_ip(client, db_session):
 # 3. LLMTriage Text-Hash Cache Tests
 # =====================================================================
 
+
 def test_llm_triage_caches_result_by_text_hash():
     """
     LLMTriage must cache successful outcomes in Redis with 24h TTL,
@@ -199,16 +208,20 @@ def test_llm_triage_caches_result_by_text_hash():
 
     # Mock OpenAI client chat completion
     mock_choice = MagicMock()
-    mock_choice.message.content = json.dumps({
-        "category": "sanitation",
-        "priority": "high",
-        "summary": "Sewage overflow outside school gate",
-        "confidence": 0.95,
-    })
+    mock_choice.message.content = json.dumps(
+        {
+            "category": "sanitation",
+            "priority": "high",
+            "summary": "Sewage overflow outside school gate",
+            "confidence": 0.95,
+        }
+    )
     mock_response = MagicMock()
     mock_response.choices = [mock_choice]
 
-    with patch.object(provider._client.chat.completions, "create", return_value=mock_response) as mock_create:
+    with patch.object(
+        provider._client.chat.completions, "create", return_value=mock_response
+    ) as mock_create:
         # First call: cache miss -> invokes OpenAI client
         res1 = provider.triage(sample_text, sample_location)
         assert mock_create.call_count == 1
@@ -243,7 +256,9 @@ def test_llm_triage_does_not_cache_failures():
     cache_key = f"triage:llm:{text_hash}"
 
     with (
-        patch.object(provider._client.chat.completions, "create", side_effect=ValueError("Corrupt response")),
+        patch.object(
+            provider._client.chat.completions, "create", side_effect=ValueError("Corrupt response")
+        ),
         pytest.raises(RuntimeError),
     ):
         provider.triage(bad_text, "Test Location")
@@ -256,6 +271,7 @@ def test_llm_triage_does_not_cache_failures():
 # =====================================================================
 # 4. Graceful Degradation (Redis Unavailable)
 # =====================================================================
+
 
 def test_stats_gracefully_handles_redis_down(client, db_session):
     """
@@ -280,4 +296,3 @@ def test_rate_limiter_fails_open_if_redis_down(client, db_session):
             json={"text": "Water pipeline burst causing flood", "location": "Test Area"},
         )
         assert res.status_code == 201
-

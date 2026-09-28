@@ -65,15 +65,15 @@ def list_complaints(
     total = db.scalar(count_stmt) or 0
 
     stmt = (
-        stmt.order_by(Complaint.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        stmt.order_by(Complaint.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     )
     items = list(db.scalars(stmt).all())
     return items, total
 
 
-def update_complaint_status(db: Session, complaint_id: UUID, new_status: Status) -> Complaint | None:
+def update_complaint_status(
+    db: Session, complaint_id: UUID, new_status: Status
+) -> Complaint | None:
     complaint = db.get(Complaint, complaint_id)
     if complaint is None:
         return None
@@ -85,17 +85,23 @@ def update_complaint_status(db: Session, complaint_id: UUID, new_status: Status)
 
 def get_complaint_stats(db: Session) -> dict:
     by_category = {c.value: 0 for c in Category}
-    for cat, count in db.query(Complaint.category, func.count(Complaint.id)).group_by(Complaint.category).all():
+    for cat, count in (
+        db.query(Complaint.category, func.count(Complaint.id)).group_by(Complaint.category).all()
+    ):
         key = cat.value if hasattr(cat, "value") else str(cat)
         by_category[key] = count
 
     by_priority = {p.value: 0 for p in Priority}
-    for prio, count in db.query(Complaint.priority, func.count(Complaint.id)).group_by(Complaint.priority).all():
+    for prio, count in (
+        db.query(Complaint.priority, func.count(Complaint.id)).group_by(Complaint.priority).all()
+    ):
         key = prio.value if hasattr(prio, "value") else str(prio)
         by_priority[key] = count
 
     by_status = {s.value: 0 for s in Status}
-    for st, count in db.query(Complaint.status, func.count(Complaint.id)).group_by(Complaint.status).all():
+    for st, count in (
+        db.query(Complaint.status, func.count(Complaint.id)).group_by(Complaint.status).all()
+    ):
         key = st.value if hasattr(st, "value") else str(st)
         by_status[key] = count
 

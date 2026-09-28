@@ -1,0 +1,5 @@
+$ docker compose exec frontend ping -c 1 database
+ping: bad address 'database'
+
+Exit Code: 1
+Verification: Network segmentation active. The frontend container joins 'edge' only and cannot reach the 'database' alias on the isolated 'internal' network.

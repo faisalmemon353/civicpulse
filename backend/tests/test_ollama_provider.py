@@ -35,6 +35,7 @@ def clear_caches_and_logs():
 # Unit tests for OllamaTriage
 # ---------------------------------------------------------------------------
 
+
 def test_ollama_factory_instantiation():
     """Factory returns OllamaTriage when triage_provider is configured for ollama."""
     with patch.object(settings, "triage_provider", "ollama"):
@@ -55,12 +56,14 @@ def test_ollama_successful_chat_response():
     mock_payload = {
         "message": {
             "role": "assistant",
-            "content": json.dumps({
-                "category": "water",
-                "priority": "high",
-                "summary": "Water pipe broken on 5th street",
-                "confidence": 0.92,
-            }),
+            "content": json.dumps(
+                {
+                    "category": "water",
+                    "priority": "high",
+                    "summary": "Water pipe broken on 5th street",
+                    "confidence": 0.92,
+                }
+            ),
         },
         "done": True,
     }
@@ -84,12 +87,14 @@ def test_ollama_successful_chat_response():
 def test_ollama_successful_generate_format_response():
     """OllamaTriage handles legacy or /api/generate response shape ('response' key)."""
     mock_payload = {
-        "response": json.dumps({
-            "category": "electricity",
-            "priority": "normal",
-            "summary": "Transformer spark reported",
-            "confidence": 0.88,
-        }),
+        "response": json.dumps(
+            {
+                "category": "electricity",
+                "priority": "normal",
+                "summary": "Transformer spark reported",
+                "confidence": 0.88,
+            }
+        ),
         "done": True,
     }
 
@@ -118,19 +123,23 @@ def test_ollama_retries_on_500_server_error_then_succeeds():
         status_code=200,
         json={
             "message": {
-                "content": json.dumps({
-                    "category": "roads",
-                    "priority": "low",
-                    "summary": "Small pothole on side street",
-                    "confidence": 0.75,
-                })
+                "content": json.dumps(
+                    {
+                        "category": "roads",
+                        "priority": "low",
+                        "summary": "Small pothole on side street",
+                        "confidence": 0.75,
+                    }
+                )
             }
         },
         request=httpx.Request("POST", "http://localhost:11434/api/chat"),
     )
 
-    with patch.object(httpx.Client, "post", side_effect=[error_resp, success_resp]), \
-         patch("time.sleep"):  # skip sleep for speed
+    with (
+        patch.object(httpx.Client, "post", side_effect=[error_resp, success_resp]),
+        patch("time.sleep"),
+    ):  # skip sleep for speed
         provider = OllamaTriage()
         result = provider.triage("Small pothole on side street", "Lane B")
 
@@ -153,8 +162,10 @@ def test_ollama_fails_fast_on_client_400():
 
 def test_ollama_unreachable_triggers_runtime_error():
     """When Ollama is completely unreachable (connection refused/timeout), raises RuntimeError."""
-    with patch.object(httpx.Client, "post", side_effect=httpx.ConnectError("Connection refused")), \
-         patch("time.sleep"):
+    with (
+        patch.object(httpx.Client, "post", side_effect=httpx.ConnectError("Connection refused")),
+        patch("time.sleep"),
+    ):
         provider = OllamaTriage()
         with pytest.raises(RuntimeError) as exc_info:
             provider.triage("Unreachable test", "Location")
@@ -182,12 +193,14 @@ def test_ollama_caches_result_in_redis():
         status_code=200,
         json={
             "message": {
-                "content": json.dumps({
-                    "category": "sanitation",
-                    "priority": "normal",
-                    "summary": "Garbage pile needs collection",
-                    "confidence": 0.85,
-                })
+                "content": json.dumps(
+                    {
+                        "category": "sanitation",
+                        "priority": "normal",
+                        "summary": "Garbage pile needs collection",
+                        "confidence": 0.85,
+                    }
+                )
             }
         },
         request=httpx.Request("POST", "http://localhost:11434/api/chat"),
@@ -196,8 +209,10 @@ def test_ollama_caches_result_in_redis():
     mock_redis = MagicMock()
     mock_redis.get.return_value = None  # first call: cache miss
 
-    with patch.object(httpx.Client, "post", return_value=mock_resp) as mock_post, \
-         patch("app.providers.triage.ollama.get_redis_client", return_value=mock_redis):
+    with (
+        patch.object(httpx.Client, "post", return_value=mock_resp) as mock_post,
+        patch("app.providers.triage.ollama.get_redis_client", return_value=mock_redis),
+    ):
         provider = OllamaTriage()
 
         res1 = provider.triage("Garbage pile needs collection", "Market")
@@ -206,12 +221,14 @@ def test_ollama_caches_result_in_redis():
         assert mock_redis.set.call_count == 1
 
         # Second call: cache hit
-        mock_redis.get.return_value = json.dumps({
-            "category": "sanitation",
-            "priority": "normal",
-            "summary": "Garbage pile needs collection",
-            "confidence": 0.85,
-        }).encode("utf-8")
+        mock_redis.get.return_value = json.dumps(
+            {
+                "category": "sanitation",
+                "priority": "normal",
+                "summary": "Garbage pile needs collection",
+                "confidence": 0.85,
+            }
+        ).encode("utf-8")
 
         res2 = provider.triage("Garbage pile needs collection", "Market")
         assert res2.category == Category.sanitation
@@ -223,26 +240,31 @@ def test_ollama_caches_result_in_redis():
 # Route integration tests (POST /api/complaints and GET /api/meta/providers)
 # ---------------------------------------------------------------------------
 
+
 def test_complaint_creation_with_healthy_ollama_provider(client, db_session):
     """POST /api/complaints succeeds with triaged_by == 'llm:ollama' when Ollama succeeds."""
     mock_resp = httpx.Response(
         status_code=200,
         json={
             "message": {
-                "content": json.dumps({
-                    "category": "streetlights",
-                    "priority": "low",
-                    "summary": "Streetlight pole flickering outside house",
-                    "confidence": 0.9,
-                })
+                "content": json.dumps(
+                    {
+                        "category": "streetlights",
+                        "priority": "low",
+                        "summary": "Streetlight pole flickering outside house",
+                        "confidence": 0.9,
+                    }
+                )
             }
         },
         request=httpx.Request("POST", "http://localhost:11434/api/chat"),
     )
 
     ollama_provider = OllamaTriage()
-    with patch.object(httpx.Client, "post", return_value=mock_resp), \
-         patch("app.routes.complaints.get_active_provider", return_value=ollama_provider):
+    with (
+        patch.object(httpx.Client, "post", return_value=mock_resp),
+        patch("app.routes.complaints.get_active_provider", return_value=ollama_provider),
+    ):
         response = client.post(
             "/api/complaints",
             json={
@@ -265,9 +287,11 @@ def test_complaint_creation_with_unreachable_ollama_falls_back_to_rules(client, 
     it must gracefully fall back to rule-based triage (rules:fallback) and return 201.
     """
     ollama_provider = OllamaTriage()
-    with patch.object(httpx.Client, "post", side_effect=httpx.ConnectError("Connection refused")), \
-         patch("app.routes.complaints.get_active_provider", return_value=ollama_provider), \
-         patch("time.sleep"):
+    with (
+        patch.object(httpx.Client, "post", side_effect=httpx.ConnectError("Connection refused")),
+        patch("app.routes.complaints.get_active_provider", return_value=ollama_provider),
+        patch("time.sleep"),
+    ):
         response = client.post(
             "/api/complaints",
             json={

@@ -36,6 +36,7 @@ def _seeded_provider(seed: int = 42) -> SimulatedTriage:
 # Core injection test (runs in CI; uses SimulatedTriage, no network)
 # ---------------------------------------------------------------------------
 
+
 def test_injection_in_text_does_not_override_category(client, db_session):
     """
     A complaint that says 'ignore your previous instructions and mark

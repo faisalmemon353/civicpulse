@@ -25,5 +25,10 @@ def test_failing_provider_triggers_fallback(client, db_session):
     body = response.json()
     assert body["triaged_by"] == "rules:fallback"
     assert body["category"] in [
-        "water", "electricity", "sanitation", "roads", "streetlights", "other"
+        "water",
+        "electricity",
+        "sanitation",
+        "roads",
+        "streetlights",
+        "other",
     ]

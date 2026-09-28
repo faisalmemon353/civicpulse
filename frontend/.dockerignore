@@ -1,5 +1,12 @@
-﻿.git
+.git
 node_modules
+.venv
+__pycache__
+*.pyc
 .env
 tests
+fixtures
+test_fixtures
 dist
+*.tsbuildinfo
+.pytest_cache

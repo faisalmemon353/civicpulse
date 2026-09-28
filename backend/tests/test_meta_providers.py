@@ -33,6 +33,7 @@ def clear_triage_log():
 # Helper
 # ---------------------------------------------------------------------------
 
+
 def _post_complaint(client, text="Road has a deep pothole near the school", location="Test Colony"):
     return client.post("/api/complaints", json={"text": text, "location": location})
 
@@ -40,6 +41,7 @@ def _post_complaint(client, text="Road has a deep pothole near the school", loca
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_providers_empty_window_on_fresh_start(client, db_session):
     """With no complaints posted, recent_outcomes must be an empty list."""
