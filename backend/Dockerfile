@@ -16,7 +16,8 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Create non‑root user
-RUN groupadd -g 1001 appgroup && \
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/* && \
+    groupadd -g 1001 appgroup && \
     useradd -u 1001 -g appgroup -m appuser
 
 # Copy built app from builder

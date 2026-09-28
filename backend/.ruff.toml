@@ -1,0 +1,10 @@
+target-version = "py312"
+line-length = 100
+
+[lint]
+ignore = [
+    "B008",
+    "BLE001",
+    "S110",
+    "RUF100",
+]

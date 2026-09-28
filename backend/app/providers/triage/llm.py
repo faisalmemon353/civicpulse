@@ -1,15 +1,18 @@
 import hashlib
 import json
+import logging
 import random
 import time
 
-from openai import OpenAI, APITimeoutError, APIStatusError
+from openai import APIStatusError, APITimeoutError, OpenAI
 from pydantic import ValidationError
 
 from app.cache import get_redis_client
 from app.config import settings
 from app.providers.triage.base import TriageResult
 from app.schemas import Category, Priority
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """You are a municipal complaint triage classifier.
 
@@ -46,7 +49,7 @@ class LLMTriage:
     def __init__(self):
         self._client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key=settings.openrouter_api_key,
+            api_key=settings.openrouter_api_key or "sk-or-placeholder",
             timeout=10.0,  # hard 10-second cap, per requirement
         )
         self._model = settings.triage_llm_model
@@ -68,8 +71,9 @@ class LLMTriage:
                         summary=str(data["summary"]),
                         confidence=float(data["confidence"]),
                     )
-            except Exception:
-                pass
+            except (OSError, ValueError, KeyError) as exc:
+                # Redis read or cache-parse failure — continue to live call
+                logger.debug("LLM triage cache read skipped: %s", exc)
 
         user_prompt = f'Complaint text: """{text}"""\nLocation: {location}'
 
@@ -96,8 +100,9 @@ class LLMTriage:
                             result.model_dump_json(),
                             ex=24 * 3600,
                         )
-                    except Exception:
-                        pass
+                    except OSError as exc:
+                        # Non-fatal: the result is still returned to the caller
+                        logger.debug("LLM triage cache write skipped: %s", exc)
 
                 return result
 

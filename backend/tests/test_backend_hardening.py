@@ -12,14 +12,14 @@ Tests for Item 5: Backend Hardening:
 """
 import json
 import logging
-from unittest.mock import MagicMock, patch
 import uuid
+from unittest.mock import patch
 
 import pytest
-from app.logging import JSONFormatter, logger
+
+from app.logging import JSONFormatter
 from app.main import app, lifespan
 from app.providers.triage.simulated import SimulatedTriage
-
 
 # =====================================================================
 # 1. Health & Readiness Probes
@@ -178,8 +178,10 @@ def test_fallback_event_emits_warning_log(client, db_session, caplog):
     """
     failing_provider = SimulatedTriage(always_fail=True)
 
-    with caplog.at_level(logging.WARNING, logger="civicpulse"):
-        with patch("app.routes.complaints.get_active_provider", return_value=failing_provider):
+    with (
+        caplog.at_level(logging.WARNING, logger="civicpulse"),
+        patch("app.routes.complaints.get_active_provider", return_value=failing_provider),
+    ):
             res = client.post(
                 "/api/complaints",
                 json={

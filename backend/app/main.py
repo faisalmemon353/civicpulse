@@ -1,10 +1,12 @@
-from contextlib import asynccontextmanager
 import time
 import uuid
+from contextlib import asynccontextmanager
 
+import redis
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.cache import close_redis
 from app.db import engine
@@ -24,12 +26,12 @@ async def lifespan(app: FastAPI):
     logger.info("CivicPulse backend shutting down: draining connections")
     try:
         engine.dispose()
-    except Exception as e:
-        logger.error(f"Error disposing database engine: {e}")
+    except (SQLAlchemyError, OSError) as exc:
+        logger.warning("Error disposing database engine: %s", exc)
     try:
         close_redis()
-    except Exception as e:
-        logger.error(f"Error closing Redis client: {e}")
+    except (redis.RedisError, OSError) as exc:
+        logger.warning("Error closing Redis client: %s", exc)
     logger.info("CivicPulse backend shutdown complete")
 
 
@@ -47,7 +49,7 @@ async def logging_and_metrics_middleware(request: Request, call_next):
         status_code = response.status_code
     except Exception as exc:
         status_code = 500
-        logger.exception(f"Unhandled exception processing {request.method} {request.url.path}: {exc}")
+        logger.exception("Unhandled exception processing %s %s: %s", request.method, request.url.path, exc)
         raise exc from None
     finally:
         duration = time.perf_counter() - start_time
@@ -67,7 +69,11 @@ async def logging_and_metrics_middleware(request: Request, call_next):
 
         # Emit structured log
         logger.info(
-            f"{request.method} {request.url.path} -> {status_code} in {duration_ms}ms",
+            "%s %s -> %s in %sms",
+            request.method,
+            request.url.path,
+            status_code,
+            duration_ms,
             extra={
                 "method": request.method,
                 "path": request.url.path,
@@ -98,7 +104,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         })
 
     logger.warning(
-        f"Validation failed for {request.method} {request.url.path}",
+        "Validation failed for %s %s",
+        request.method,
+        request.url.path,
         extra={"validation_errors": errors},
     )
 

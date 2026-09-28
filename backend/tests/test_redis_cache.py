@@ -8,19 +8,15 @@ Tests for Item 4: Redis Cache Layer:
 """
 import hashlib
 import json
-import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app.cache import get_redis_client
 from app.config import settings
-from app.providers.triage.base import TriageResult
 from app.providers.triage.llm import LLMTriage
 from app.routes.stats import STATS_CACHE_KEY, STATS_CACHE_TTL_SECONDS
 from app.schemas import Category, Priority
-
 
 # =====================================================================
 # 1. Stats Caching Tests
@@ -246,9 +242,11 @@ def test_llm_triage_does_not_cache_failures():
     text_hash = hashlib.sha256(bad_text.strip().encode("utf-8")).hexdigest()
     cache_key = f"triage:llm:{text_hash}"
 
-    with patch.object(provider._client.chat.completions, "create", side_effect=ValueError("Corrupt response")):
-        with pytest.raises(RuntimeError):
-            provider.triage(bad_text, "Test Location")
+    with (
+        patch.object(provider._client.chat.completions, "create", side_effect=ValueError("Corrupt response")),
+        pytest.raises(RuntimeError),
+    ):
+        provider.triage(bad_text, "Test Location")
 
     redis = get_redis_client()
     assert redis is not None

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import random
 import time
 
@@ -11,6 +12,8 @@ from app.config import settings
 from app.providers.triage.base import TriageResult
 from app.providers.triage.llm import _SYSTEM_PROMPT
 from app.schemas import Category, Priority
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaTriage:
@@ -50,8 +53,9 @@ class OllamaTriage:
                         summary=str(data["summary"]),
                         confidence=float(data["confidence"]),
                     )
-            except Exception:
-                pass
+            except (OSError, ValueError, KeyError) as exc:
+                # Redis read or cache-parse failure — continue to live call
+                logger.debug("Ollama triage cache read skipped: %s", exc)
 
         user_prompt = f'Complaint text: """{text}"""\nLocation: {location}'
         payload = {
@@ -86,8 +90,9 @@ class OllamaTriage:
                             result.model_dump_json(),
                             ex=24 * 3600,
                         )
-                    except Exception:
-                        pass
+                    except OSError as exc:
+                        # Non-fatal: the result is still returned to the caller
+                        logger.debug("Ollama triage cache write skipped: %s", exc)
 
                 return result
 

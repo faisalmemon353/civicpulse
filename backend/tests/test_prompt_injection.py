@@ -22,7 +22,6 @@ from unittest.mock import patch
 from app.providers.triage.simulated import SimulatedTriage
 from app.schemas import Category
 
-
 VALID_CATEGORIES = {c.value for c in Category}
 
 

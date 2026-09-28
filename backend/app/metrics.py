@@ -8,6 +8,16 @@ from prometheus_client import (
     generate_latest,
 )
 
+__all__ = [
+    "CONTENT_TYPE_LATEST",
+    "HTTP_REQUESTS_TOTAL",
+    "HTTP_REQUEST_DURATION_SECONDS",
+    "TRIAGE_DURATION_SECONDS",
+    "TRIAGE_FALLBACKS_TOTAL",
+    "generate_latest",
+    "record_triage_metrics",
+]
+
 # HTTP Request Metrics
 HTTP_REQUESTS_TOTAL = Counter(
     "civicpulse_http_requests_total",
