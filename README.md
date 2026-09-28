@@ -1,7 +1,7 @@
 # CivicPulse — Municipal Complaint Intake & AI Triage Platform
 
-[![CI Pipeline](https://github.com/your-org/civicpulse/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/civicpulse/actions/workflows/ci.yml)
-[![CD Pipeline](https://github.com/your-org/civicpulse/actions/workflows/cd.yml/badge.svg)](https://github.com/your-org/civicpulse/actions/workflows/cd.yml)
+[![CI Pipeline](https://github.com/faisalmemon353/civicpulse/actions/workflows/ci.yml/badge.svg)](https://github.com/faisalmemon353/civicpulse/actions/workflows/ci.yml)
+[![CD Pipeline](https://github.com/faisalmemon353/civicpulse/actions/workflows/cd.yml/badge.svg)](https://github.com/faisalmemon353/civicpulse/actions/workflows/cd.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.12](https://img.shields.io/badge/Python-3.12-blue?logo=python)](https://python.org)
 [![Node: 22](https://img.shields.io/badge/Node-22-green?logo=node.js)](https://nodejs.org)
@@ -48,7 +48,7 @@ To launch the complete 5-container architecture on your local machine:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-org/civicpulse.git
+git clone https://github.com/faisalmemon353/civicpulse.git
 cd civicpulse
 
 # 2. Setup environment variables
