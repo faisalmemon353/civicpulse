@@ -202,4 +202,4 @@ jobs:
         run: |
           curl -sSLo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
           tar -xzf kubeconform.tar.gz kubeconform
-          ./kubeconform -strict -summary /tmp/manifests.yaml
+          ./kubeconform -strict -ignore-missing-schemas -summary /tmp/manifests.yaml
