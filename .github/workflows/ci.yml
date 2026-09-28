@@ -66,6 +66,7 @@ jobs:
       DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/civicpulse_test
       TRIAGE_PROVIDER: simulated
       REDIS_URL: redis://localhost:6379/0
+      OPENROUTER_API_KEY: sk-or-placeholder
 
     services:
       postgres:

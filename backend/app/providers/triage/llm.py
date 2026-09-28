@@ -49,7 +49,7 @@ class LLMTriage:
     def __init__(self):
         self._client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key=settings.openrouter_api_key,
+            api_key=settings.openrouter_api_key or "sk-or-placeholder",
             timeout=10.0,  # hard 10-second cap, per requirement
         )
         self._model = settings.triage_llm_model
