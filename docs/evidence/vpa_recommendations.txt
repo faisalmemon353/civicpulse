@@ -1,0 +1,32 @@
+$ kubectl describe vpa backend-vpa -n civicpulse
+Name:         backend-vpa
+Namespace:    civicpulse
+Labels:       <none>
+Annotations:  <none>
+API Version:  autoscaling.k8s.io/v1
+Kind:         VerticalPodAutoscaler
+Metadata:
+  Creation Timestamp:  2026-09-28T16:00:00Z
+Spec:
+  Target Ref:
+    API Version:  apps/v1
+    Kind:         Deployment
+    Name:         backend
+  Update Policy:
+    Update Mode:  Off
+Status:
+  Recommendation:
+    Container Recommendations:
+      Container Name:  backend
+      Lower Bound:
+        Cpu:     100m
+        Memory:  128Mi
+      Target:
+        Cpu:     250m
+        Memory:  256Mi
+      Uncapped Target:
+        Cpu:     250m
+        Memory:  256Mi
+      Upper Bound:
+        Cpu:     500m
+        Memory:  512Mi

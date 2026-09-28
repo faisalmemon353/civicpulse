@@ -29,7 +29,9 @@ class RuleBasedTriage:
                 category = cat
                 break
 
-        priority = Priority.high if any(kw in lowered for kw in _URGENT_KEYWORDS) else Priority.normal
+        priority = (
+            Priority.high if any(kw in lowered for kw in _URGENT_KEYWORDS) else Priority.normal
+        )
         summary = text[:137] + "..." if len(text) > 140 else text
 
         return TriageResult(category=category, priority=priority, summary=summary, confidence=0.5)

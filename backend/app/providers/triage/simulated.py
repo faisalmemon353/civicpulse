@@ -21,7 +21,9 @@ class SimulatedTriage:
 
     name = "simulated"
 
-    def __init__(self, *, always_fail: bool = False, always_malformed: bool = False, seed: int | None = None):
+    def __init__(
+        self, *, always_fail: bool = False, always_malformed: bool = False, seed: int | None = None
+    ):
         self._always_fail = always_fail
         self._always_malformed = always_malformed
         self._rng = random.Random(seed)

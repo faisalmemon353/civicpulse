@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -8,6 +10,8 @@ from app.cache import get_redis_client
 from app.db import Base, get_db
 from app.main import app
 
+logger = logging.getLogger(__name__)
+
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
 
@@ -17,14 +21,14 @@ def clean_redis():
     if client:
         try:
             client.flushdb()
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Redis pre-test flush skipped: %s", exc)
     yield
     if client:
         try:
             client.flushdb()
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.debug("Redis post-test flush skipped: %s", exc)
 
 
 @pytest.fixture(scope="function")

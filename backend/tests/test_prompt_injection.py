@@ -22,7 +22,6 @@ from unittest.mock import patch
 from app.providers.triage.simulated import SimulatedTriage
 from app.schemas import Category
 
-
 VALID_CATEGORIES = {c.value for c in Category}
 
 
@@ -36,6 +35,7 @@ def _seeded_provider(seed: int = 42) -> SimulatedTriage:
 # ---------------------------------------------------------------------------
 # Core injection test (runs in CI; uses SimulatedTriage, no network)
 # ---------------------------------------------------------------------------
+
 
 def test_injection_in_text_does_not_override_category(client, db_session):
     """

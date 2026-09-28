@@ -10,20 +10,22 @@ Tests for Item 5: Backend Hardening:
 6. HTTP 400 field-level validation error responses (replacing 422)
 7. Lifespan graceful shutdown (connection pool disposal)
 """
+
 import json
 import logging
-from unittest.mock import MagicMock, patch
 import uuid
+from unittest.mock import patch
 
 import pytest
-from app.logging import JSONFormatter, logger
+
+from app.logging import JSONFormatter
 from app.main import app, lifespan
 from app.providers.triage.simulated import SimulatedTriage
-
 
 # =====================================================================
 # 1. Health & Readiness Probes
 # =====================================================================
+
 
 def test_health_probe_returns_ok_without_db(client):
     """
@@ -41,8 +43,10 @@ def test_ready_probe_all_healthy(client, db_session):
     """
     GET /ready returns 200 {"status": "ready"} when Postgres and Redis are up.
     """
-    with patch("app.routes.system.check_postgres", return_value=True), \
-         patch("app.routes.system.check_redis", return_value=True):
+    with (
+        patch("app.routes.system.check_postgres", return_value=True),
+        patch("app.routes.system.check_redis", return_value=True),
+    ):
         res = client.get("/ready")
         assert res.status_code == 200
         body = res.json()
@@ -55,8 +59,10 @@ def test_ready_probe_database_down_returns_503(client):
     """
     GET /ready returns 503 Service Unavailable naming 'database' when Postgres is down.
     """
-    with patch("app.routes.system.check_postgres", return_value=False), \
-         patch("app.routes.system.check_redis", return_value=True):
+    with (
+        patch("app.routes.system.check_postgres", return_value=False),
+        patch("app.routes.system.check_redis", return_value=True),
+    ):
         res = client.get("/ready")
         assert res.status_code == 503
         body = res.json()
@@ -70,8 +76,10 @@ def test_ready_probe_cache_down_returns_503(client):
     """
     GET /ready returns 503 Service Unavailable naming 'cache' when Redis is down.
     """
-    with patch("app.routes.system.check_postgres", return_value=True), \
-         patch("app.routes.system.check_redis", return_value=False):
+    with (
+        patch("app.routes.system.check_postgres", return_value=True),
+        patch("app.routes.system.check_redis", return_value=False),
+    ):
         res = client.get("/ready")
         assert res.status_code == 503
         body = res.json()
@@ -85,8 +93,10 @@ def test_ready_probe_both_down_returns_503(client):
     """
     GET /ready returns 503 naming both dependencies when both are unreachable.
     """
-    with patch("app.routes.system.check_postgres", return_value=False), \
-         patch("app.routes.system.check_redis", return_value=False):
+    with (
+        patch("app.routes.system.check_postgres", return_value=False),
+        patch("app.routes.system.check_redis", return_value=False),
+    ):
         res = client.get("/ready")
         assert res.status_code == 503
         body = res.json()
@@ -98,6 +108,7 @@ def test_ready_probe_both_down_returns_503(client):
 # =====================================================================
 # 2. Prometheus Metrics
 # =====================================================================
+
 
 def test_metrics_endpoint_returns_prometheus_format(client):
     """
@@ -120,6 +131,7 @@ def test_metrics_endpoint_returns_prometheus_format(client):
 # =====================================================================
 # 3. Request-ID Propagation & Middleware
 # =====================================================================
+
 
 def test_request_id_propagated_from_client_header(client):
     """
@@ -146,6 +158,7 @@ def test_request_id_generated_when_absent(client):
 # =====================================================================
 # 4. Structured JSON Logging & Fallback Warning
 # =====================================================================
+
 
 def test_json_formatter_produces_valid_json():
     """
@@ -178,22 +191,25 @@ def test_fallback_event_emits_warning_log(client, db_session, caplog):
     """
     failing_provider = SimulatedTriage(always_fail=True)
 
-    with caplog.at_level(logging.WARNING, logger="civicpulse"):
-        with patch("app.routes.complaints.get_active_provider", return_value=failing_provider):
-            res = client.post(
-                "/api/complaints",
-                json={
-                    "text": "Water pipeline burst causing flood in main road",
-                    "location": "Sector F-7, Islamabad",
-                },
-            )
+    with (
+        caplog.at_level(logging.WARNING, logger="civicpulse"),
+        patch("app.routes.complaints.get_active_provider", return_value=failing_provider),
+    ):
+        res = client.post(
+            "/api/complaints",
+            json={
+                "text": "Water pipeline burst causing flood in main road",
+                "location": "Sector F-7, Islamabad",
+            },
+        )
 
     assert res.status_code == 201
     complaint_id = res.json()["id"]
 
     # Verify a WARNING record with fallback details exists
     fallback_records = [
-        r for r in caplog.records
+        r
+        for r in caplog.records
         if r.levelno == logging.WARNING and "fallback" in r.getMessage().lower()
     ]
     assert len(fallback_records) >= 1
@@ -206,6 +222,7 @@ def test_fallback_event_emits_warning_log(client, db_session, caplog):
 # =====================================================================
 # 5. Field-Level 400 Validation Error Responses
 # =====================================================================
+
 
 def test_short_complaint_text_returns_400_with_field_errors(client, db_session):
     """
@@ -244,13 +261,16 @@ def test_missing_location_returns_400_with_field_errors(client, db_session):
 # 6. Lifespan Graceful Shutdown
 # =====================================================================
 
+
 @pytest.mark.anyio
 async def test_lifespan_graceful_shutdown():
     """
     Lifespan context manager must cleanly startup and dispose resources on shutdown.
     """
-    with patch("app.main.engine.dispose") as mock_dispose, \
-         patch("app.main.close_redis") as mock_close_redis:
+    with (
+        patch("app.main.engine.dispose") as mock_dispose,
+        patch("app.main.close_redis") as mock_close_redis,
+    ):
         async with lifespan(app):
             pass  # running
         # After exiting lifespan (SIGTERM / shutdown)

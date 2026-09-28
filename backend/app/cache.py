@@ -1,15 +1,16 @@
 """
 Redis client and connection management for CivicPulse.
 """
-from typing import Optional
+
 import redis
 
 from app.config import settings
+from app.logging import logger
 
-_redis_client: Optional[redis.Redis] = None
+_redis_client: redis.Redis | None = None
 
 
-def get_redis_client() -> Optional[redis.Redis]:
+def get_redis_client() -> redis.Redis | None:
     """
     Returns a singleton Redis client connected to settings.redis_url.
     Returns None if connection fails, enabling graceful degradation.
@@ -28,11 +29,12 @@ def get_redis_client() -> Optional[redis.Redis]:
         client.ping()
         _redis_client = client
         return _redis_client
-    except Exception:
+    except (redis.RedisError, OSError, TimeoutError) as exc:
+        logger.warning("Redis connection failed: %s", exc)
         return None
 
 
-def set_redis_client(client: Optional[redis.Redis]) -> None:
+def set_redis_client(client: redis.Redis | None) -> None:
     """Explicitly sets or overrides the Redis client (useful in tests)."""
     global _redis_client
     _redis_client = client
@@ -44,8 +46,8 @@ def close_redis() -> None:
     if _redis_client is not None:
         try:
             _redis_client.close()
-        except Exception:
-            pass
+        except (redis.RedisError, OSError) as exc:
+            logger.warning("Error closing Redis client: %s", exc)
         _redis_client = None
 
 
@@ -56,6 +58,6 @@ def check_redis() -> bool:
         return False
     try:
         return bool(client.ping())
-    except Exception:
+    except (redis.RedisError, OSError, TimeoutError) as exc:
+        logger.warning("Redis health check failed: %s", exc)
         return False
-

@@ -21,20 +21,17 @@ Thread safety:
 
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 MAX_OUTCOMES = 20
 
 
 @dataclass
 class TriageOutcome:
-    provider: str          # e.g. "simulated", "llm:openrouter", "rules:fallback"
+    provider: str  # e.g. "simulated", "llm:openrouter", "rules:fallback"
     latency_ms: int
     is_fallback: bool
-    recorded_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    recorded_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def as_dict(self) -> dict:
         return {
@@ -52,7 +49,9 @@ _outcomes: deque[TriageOutcome] = deque(maxlen=MAX_OUTCOMES)
 
 def record(provider: str, latency_ms: int, is_fallback: bool) -> None:
     """Append one outcome to the rolling window."""
-    _outcomes.append(TriageOutcome(provider=provider, latency_ms=latency_ms, is_fallback=is_fallback))
+    _outcomes.append(
+        TriageOutcome(provider=provider, latency_ms=latency_ms, is_fallback=is_fallback)
+    )
 
 
 def recent() -> list[dict]:

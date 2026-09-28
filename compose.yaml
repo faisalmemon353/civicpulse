@@ -1,0 +1,201 @@
+# ==============================================================================
+# CivicPulse Docker Compose — Development Environment (compose.yaml)
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # Frontend: Single Page Application served via Nginx (SPA reverse proxy)
+  # Joins edge network ONLY — zero network route to database or cache
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+    image: civicpulse-frontend:dev
+    container_name: civicpulse-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    networks:
+      - edge
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+        reservations:
+          cpus: "0.10"
+          memory: 64M
+
+  # ----------------------------------------------------------------------------
+  # Backend: FastAPI application
+  # Bridges BOTH edge and internal networks (the only service with dual access)
+  # Source mounted for hot-reload in development
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+    image: civicpulse-backend:dev
+    container_name: civicpulse-backend
+    restart: unless-stopped
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./backend:/app
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    networks:
+      - edge
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-civicpulse}
+      REDIS_URL: redis://redis:6379/0
+      TRIAGE_PROVIDER: ${TRIAGE_PROVIDER:-ollama}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      TRIAGE_LLM_MODEL: ${TRIAGE_LLM_MODEL:-google/gemma-4-26b-a4b-it:free}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:1b}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  # ----------------------------------------------------------------------------
+  # Database: PostgreSQL
+  # Joins internal network ONLY — completely unreachable from frontend or internet
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine@sha256:f7d23353e1b15400d22ebe31189f4d314b87a4c129cc400c8c2d8d4ca127bf81
+    container_name: civicpulse-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-civicpulse}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432" # Published in dev only for database tools/inspections
+    networks:
+      internal:
+        aliases:
+          - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-civicpulse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+        reservations:
+          cpus: "0.20"
+          memory: 128M
+
+  # ----------------------------------------------------------------------------
+  # Cache: Redis with AOF persistence
+  # Joins internal network ONLY
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    container_name: civicpulse-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379" # Published in dev only for caching inspection
+    networks:
+      internal:
+        aliases:
+          - cache
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 3s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          cpus: "0.10"
+          memory: 64M
+
+  # ----------------------------------------------------------------------------
+  # Local LLM Inference: Ollama
+  # Joins internal network ONLY; weights persisted in ollama_models volume
+  # ----------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:0.5.7
+    container_name: civicpulse-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 2G
+        reservations:
+          cpus: "0.50"
+          memory: 512M
+
+# ------------------------------------------------------------------------------
+# Network Segmentation
+# ------------------------------------------------------------------------------
+networks:
+  edge:
+    name: civicpulse_edge
+    driver: bridge
+
+  internal:
+    name: civicpulse_internal
+    driver: bridge
+    internal: true # no route to the outside world
+
+# ------------------------------------------------------------------------------
+# Explicit Persistence Volumes
+# ------------------------------------------------------------------------------
+volumes:
+  pgdata:
+    name: civicpulse_pgdata
+  redisdata:
+    name: civicpulse_redisdata
+  ollama_models:
+    name: civicpulse_ollama_models

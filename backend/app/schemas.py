@@ -49,5 +49,6 @@ class ComplaintOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
 class StatusUpdate(BaseModel):
     status: Status
