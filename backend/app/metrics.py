@@ -10,11 +10,11 @@ from prometheus_client import (
 
 __all__ = [
     "CONTENT_TYPE_LATEST",
-    "generate_latest",
     "HTTP_REQUESTS_TOTAL",
     "HTTP_REQUEST_DURATION_SECONDS",
     "TRIAGE_DURATION_SECONDS",
     "TRIAGE_FALLBACKS_TOTAL",
+    "generate_latest",
     "record_triage_metrics",
 ]
 
