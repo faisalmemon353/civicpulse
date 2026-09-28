@@ -2,9 +2,21 @@
 Prometheus metrics exposition for CivicPulse.
 """
 from prometheus_client import (
+    CONTENT_TYPE_LATEST,
     Counter,
     Histogram,
+    generate_latest,
 )
+
+__all__ = [
+    "CONTENT_TYPE_LATEST",
+    "generate_latest",
+    "HTTP_REQUESTS_TOTAL",
+    "HTTP_REQUEST_DURATION_SECONDS",
+    "TRIAGE_DURATION_SECONDS",
+    "TRIAGE_FALLBACKS_TOTAL",
+    "record_triage_metrics",
+]
 
 # HTTP Request Metrics
 HTTP_REQUESTS_TOTAL = Counter(
