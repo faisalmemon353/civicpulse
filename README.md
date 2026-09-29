@@ -95,9 +95,22 @@ docker compose exec backend python scripts/seed.py
 
 ---
 
-## 5. Verification & Submission Lint
+## 5. Screenshots & Operational Evidence
+
+### Citizen Complaint Intake & Real-time AI Triage
+![Citizen Intake & Real-time AI Triage](docs/evidence/ui_submit_triage.png)
+
+### Operations Dashboard & Incident Management
+![Operations Dashboard](docs/evidence/ui_dashboard.png)
+
+### Horizontal Pod Autoscaling (HPA) Load Profile
+![HPA Scaling Under Load](docs/evidence/scaling_chart.png)
+
+---
+
+## 6. Verification & Submission Lint
 
 Run the mechanical lint before submission:
 ```bash
 python scripts/check_submission.py
-```
+```
